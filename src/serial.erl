@@ -95,6 +95,13 @@ loop(Pid,Port) ->
 	{break} ->
 	    send_serial(Port,[?BREAK]),
 	    serial:loop(Pid,Port);
+	{clocal, OnOff} when is_boolean(OnOff) ->
+	    CLocal = case OnOff of
+		true -> ?ON;
+		false -> ?OFF
+	    end,
+	    send_serial(Port,[?CLOCAL, CLocal]),
+	    serial:loop(Pid,Port);
 	stop ->
 	    stopped;
 	{'EXIT', Port, Why} ->

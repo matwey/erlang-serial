@@ -179,11 +179,6 @@ void set_raw_tty_mode(int fd)
 
   ttymodes.c_oflag &= ~OPOST;      /* disable output processing */
 
-  /* roland */
-  ttymodes.c_cflag |= CLOCAL;
-
-
-
   /* Apply changes */
 
   if (tcsetattr(fd, TCSAFLUSH, &ttymodes) < 0)
@@ -227,6 +222,31 @@ void set_tty_speed(int fd, speed_t new_ispeed, speed_t new_ospeed)
 
   /* Apply hanges */
 
+  if (tcsetattr(fd, TCSAFLUSH, &ttymodes) < 0)
+    {
+      perror("tcsetattr");
+      exit(1);
+    }
+}
+
+void set_clocal(int fd, int clocal)
+{
+  struct termios ttymodes;
+
+  /* Get ttymodes */
+
+  if (tcgetattr(fd,&ttymodes) < 0)
+    {
+      perror("tcgetattr");
+      exit(1);
+    }
+
+  if (clocal)
+    ttymodes.c_cflag |= CLOCAL;
+  else
+    ttymodes.c_cflag &= ~CLOCAL;
+
+  /* Apply hanges */
   if (tcsetattr(fd, TCSAFLUSH, &ttymodes) < 0)
     {
       perror("tcsetattr");
@@ -371,6 +391,7 @@ int main(int argc, char *argv[])
   int            stdoutfd;             /* user out file descriptor */
   boolean        cbreak=FALSE;         /* cbreak flag              */
   boolean        erlang=FALSE;         /* talking to erlang flag   */
+  boolean        clocal=TRUE;          /* clocal flag              */
   speed_t        in_speed=B9600;       /* default in speed         */
   speed_t        out_speed=B9600;      /* default out speed        */
   char           ttyname[MAXPATHLEN];  /* terminal name            */
@@ -420,6 +441,14 @@ int main(int argc, char *argv[])
 	  {
 	    erlang = TRUE;
 	  }
+	else if (strcmp(argv[i],"-clocal") == 0)    /* -clocal */
+	  {
+	    clocal = TRUE;
+	  }
+	else if (strcmp(argv[i],"-no-clocal") == 0)    /* -no-clocal */
+	  {
+	    clocal = FALSE;
+	  }
 	else
 	  goto error_usage;
       }
@@ -441,6 +470,7 @@ int main(int argc, char *argv[])
   
       set_raw_tty_mode(ttyfd);
       set_tty_speed(ttyfd,in_speed,out_speed);
+      set_clocal(ttyfd,clocal);
     }
 
   /****************************************
@@ -628,6 +658,7 @@ int main(int argc, char *argv[])
 
 		    set_raw_tty_mode(ttyfd);
 		    set_tty_speed(ttyfd,in_speed,out_speed);
+		    set_clocal(ttyfd,clocal);
 		    break;
 
 		  case CLOSE:	   /******************************/
@@ -663,7 +694,12 @@ int main(int argc, char *argv[])
 			set_tty_speed(ttyfd, in_speed, out_speed);
 		      break;
 		    }
-
+		  case CMD_CLOCAL:
+		    {
+		      if(TtyOpen(ttyfd))
+			set_clocal(ttyfd, buf[HEADERSIZE]);
+		      break;
+		    }
 		  case PARITY_ODD: /******************************/
 		    break;
 
